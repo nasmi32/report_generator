@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Markdown to PDF</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { display: flex; gap: 20px; }
+        textarea { width: 100%; height: 400px; font-family: monospace; }
+        button { padding: 10px 20px; margin-top: 10px; }
+        .preview { border: 1px solid #ddd; padding: 10px; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        function updatePreview() {
+            const markdown = document.getElementById('markdown').value;
+            document.getElementById('preview').innerHTML = marked.parse(markdown);
+        }
+
+        function submitForm() {
+            const markdown = document.getElementById('markdown').value;
+            fetch('/convert', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain',
+                },
+                body: markdown
+            })
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'document.pdf';
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+    </script>
+</head>
+<body>
+<h1>Markdown to PDF Converter</h1>
+<div class="container">
+    <div style="flex: 1;">
+        <h3>Markdown</h3>
+        <textarea id="markdown"
+                  placeholder="# Заголовок\n\n* Список\n* Элементы\n\n**Жирный текст**..."
+                  oninput="updatePreview()"></textarea>
+        <br>
+        <button onclick="submitForm()">Сгенерировать PDF</button>
+    </div>
+    <div style="flex: 1;">
+        <h3>Предпросмотр</h3>
+        <div id="preview" class="preview"></div>
+    </div>
+</div>
+</body>
+</html>

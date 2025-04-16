@@ -3,12 +3,12 @@ package com.misch.report_generator.controller;
 import com.misch.report_generator.service.PdfGeneratorService;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
-@RestController
+@Controller
 public class ReportController {
     private final PdfGeneratorService pdfService;
 
@@ -16,53 +16,27 @@ public class ReportController {
         this.pdfService = pdfService;
     }
 
-    @GetMapping(value = "/")
+    @GetMapping("/")
     public String home() {
-        return "Markdown to PDF";
+        return "form";
     }
 
-    // Новый GET-эндпоинт для отображения формы
-    @GetMapping(value = "/form", produces = MediaType.TEXT_HTML_VALUE)
+    @GetMapping("/form")
     public String showForm() {
-        return """
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>PDF Generator</title>
-                <style>
-                    body { font-family: Arial, sans-serif; margin: 40px; }
-                    textarea { width: 100%; height: 200px; }
-                    button { padding: 10px 20px; margin-top: 10px; }
-                </style>
-            </head>
-            <body>
-                <h1>Генератор PDF</h1>
-                <form action="/convert" method="post" enctype="text/plain">
-                    <textarea name="text" placeholder="Введите текст для PDF..."></textarea>
-                    <br>
-                    <button type="submit">Сгенерировать PDF</button>
-                </form>
-            </body>
-            </html>
-            """;
+        return "form"; // Имя файла без .html
     }
 
     @PostMapping(value = "/convert", consumes = MediaType.TEXT_PLAIN_VALUE)
     @ResponseBody
-    public ResponseEntity<byte[]> convertToPdf(@RequestBody String text) {
+    public ResponseEntity<byte[]> convertToPdf(@RequestBody String markdownText) {
         try {
-            String cleanText = text.startsWith("text=") ? text.substring(5) : text;
-
-            byte[] pdf = pdfService.generatePdf(cleanText);
+            byte[] pdf = pdfService.generatePdfFromMarkdown(markdownText);
             return ResponseEntity.ok()
                     .header("Content-Type", "application/pdf")
-                    .header("Content-Disposition", "attachment; filename=report.pdf")
+                    .header("Content-Disposition", "attachment; filename=document.pdf")
                     .body(pdf);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(("Пффф... " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
-            return ResponseEntity.internalServerError()
+            return ResponseEntity.badRequest()
                     .body(("Ошибка генерации PDF: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
         }
     }
