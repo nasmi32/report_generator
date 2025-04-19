@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Загрузка Markdown и изображений</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f7fc;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 600px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        label {
+            font-size: 16px;
+            color: #555;
+            margin-top: 10px;
+            display: block;
+        }
+        input[type="file"] {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 20px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #message {
+            margin-top: 20px;
+            font-size: 16px;
+            color: #333;
+            text-align: center;
+        }
+        #downloadLink {
+            margin-top: 10px;
+            text-align: center;
+        }
+        a {
+            color: #4CAF50;
+            font-size: 18px;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Загрузка Markdown файла и архива с изображениями</h1>
+
+    <form id="uploadForm" enctype="multipart/form-data">
+        <label for="fileInput">Markdown (.md):</label>
+        <input type="file" id="fileInput" name="mdFile" accept=".md">
+
+        <label for="zipInput">ZIP архив с изображениями:</label>
+        <input type="file" id="zipInput" name="zipFile" accept=".zip">
+
+        <button type="button" onclick="uploadFiles()">Загрузить</button>
+    </form>
+
+    <div id="message"></div>
+    <div id="downloadLink"></div>
+</div>
+
+<script>
+    function uploadFiles() {
+        const mdFile = document.getElementById("fileInput").files[0];
+        const zipFile = document.getElementById("zipInput").files[0];
+        const messageDiv = document.getElementById("message");
+        const linkDiv = document.getElementById("downloadLink");
+
+        if (!mdFile) {
+            messageDiv.innerText = "Пожалуйста, выберите Markdown файл.";
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("mdFile", mdFile);
+        if (zipFile) {
+            formData.append("zipFile", zipFile);
+        }
+
+        fetch("/upload", {
+            method: "POST",
+            body: formData
+        })
+            .then(async response => {
+                const text = await response.text();
+                if (response.ok) {
+                    messageDiv.innerText = "Файлы успешно загружены и PDF создан!";
+                    linkDiv.innerHTML = `<a href="/download/${text}" target="_blank">Скачать PDF</a>`;
+                } else {
+                    messageDiv.innerText = "Ошибка: " + text;
+                }
+            })
+            .catch(err => {
+                messageDiv.innerText = "Ошибка запроса: " + err;
+            });
+    }
+</script>
+</body>
+</html>
