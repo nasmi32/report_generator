@@ -1,9 +1,7 @@
 package com.misch.report_generator.service;
 
-import com.itextpdf.text.DocumentException;
-import com.itextpdf.text.Font;
-import com.itextpdf.text.pdf.BaseFont;
-import com.itextpdf.text.pdf.PdfWriter;
+import com.itextpdf.text.*;
+import com.itextpdf.text.pdf.*;
 import com.itextpdf.tool.xml.XMLWorkerFontProvider;
 import com.itextpdf.tool.xml.XMLWorkerHelper;
 import org.commonmark.node.Node;
@@ -12,53 +10,35 @@ import org.commonmark.renderer.html.HtmlRenderer;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
 
 @Service
 public class PdfGeneratorService {
-    private final Parser markdownParser;
-    private final HtmlRenderer htmlRenderer;
+    private final Parser markdownParser = Parser.builder().build();
+    private final HtmlRenderer htmlRenderer = HtmlRenderer.builder().build();
     private final BaseFont russianFont;
 
     public PdfGeneratorService() throws IOException, DocumentException {
-        this.markdownParser = Parser.builder().build();
-        this.htmlRenderer = HtmlRenderer.builder().build();
-        this.russianFont = initializeRussianFont();
-    }
-
-    private BaseFont initializeRussianFont() throws IOException, DocumentException {
-        try {
-            // Альтернативный вариант - использовать встроенный шрифт
-            return BaseFont.createFont(
-                    "fonts/arial.ttf",
-                    BaseFont.IDENTITY_H,
-                    BaseFont.EMBEDDED
-            );
-        } catch (Exception e) {
-            // Fallback на стандартный шрифт
-            return BaseFont.createFont(
-                    BaseFont.HELVETICA,
-                    BaseFont.WINANSI,
-                    BaseFont.EMBEDDED
-            );
-        }
+        // Используем шрифт с поддержкой кириллицы, лежащий в resources/fonts
+        russianFont = BaseFont.createFont(
+                new ClassPathResource("fonts/DejaVuSans.ttf").getPath(),
+                BaseFont.IDENTITY_H, BaseFont.EMBEDDED
+        );
     }
 
     public byte[] generatePdfFromMarkdown(String markdown) {
-        try {
+        try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
             Node document = markdownParser.parse(markdown);
             String html = htmlRenderer.render(document);
 
-            com.itextpdf.text.Document pdfDoc = new com.itextpdf.text.Document();
-            ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+            Document pdfDoc = new Document();
             PdfWriter writer = PdfWriter.getInstance(pdfDoc, outputStream);
-
             pdfDoc.open();
 
+            // Парсим HTML + поддержка изображений + кириллица
             XMLWorkerHelper.getInstance().parseXHtml(
                     writer,
                     pdfDoc,
@@ -70,7 +50,7 @@ public class PdfGeneratorService {
             pdfDoc.close();
             return outputStream.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Failed to generate PDF", e);
+            throw new RuntimeException("Ошибка генерации PDF", e);
         }
     }
 
@@ -83,8 +63,8 @@ public class PdfGeneratorService {
 
         @Override
         public Font getFont(String fontname, String encoding,
-                            boolean embedded, float size, int style) {
-            return new Font(baseFont, size, style);
+                            boolean embedded, float size, int style, BaseColor color) {
+            return new Font(baseFont, size, style, color);
         }
     }
 }
