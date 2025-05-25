@@ -1,5 +1,7 @@
 package com.misch.report_generator.service;
 
+import com.misch.report_generator.model.Report;
+import com.misch.report_generator.repository.ReportRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -13,6 +15,16 @@ import java.util.zip.ZipInputStream;
 public class ReportService {
 
     private final Path downloadDir = Paths.get("downloads");
+    private final ReportRepository reportRepository;
+
+    public ReportService(ReportRepository reportRepository) {
+        this.reportRepository = reportRepository;
+        try {
+            Files.createDirectories(downloadDir);
+        } catch (IOException e) {
+            throw new RuntimeException("Could not create download directory", e);
+        }
+    }
 
     public String generatePdfFromMarkdown(MultipartFile mdFile, MultipartFile zipFile) throws Exception {
         Path tempDir = Files.createTempDirectory("upload_");
@@ -65,10 +77,19 @@ public class ReportService {
         Path finalPath = downloadDir.resolve(pdfFileName);
         Files.move(pdfPath, finalPath, StandardCopyOption.REPLACE_EXISTING);
 
+        Report report = new Report();
+        report.setOriginalFilename(mdFile.getOriginalFilename());
+        report.setGeneratedFilename(pdfFileName);
+        report.setFileSize(Files.size(finalPath));
+
+        reportRepository.save(report);
+
         return pdfFileName;
     }
 
     public File getDownloadedFile(String filename) {
+        reportRepository.findByGeneratedFilename(filename)
+                .orElseThrow(() -> new RuntimeException("File not found in database"));
         return downloadDir.resolve(filename).toFile();
     }
 
@@ -88,5 +109,14 @@ public class ReportService {
                 }
             }
         }
+    }
+
+    public List<Report> getAllReports() {
+        return reportRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+    public Report getReportById(UUID id) {
+        return reportRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Отчёт не найден"));
     }
 }

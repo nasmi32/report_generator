@@ -22,10 +22,12 @@
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
             width: 100%;
             max-width: 600px;
+            position: relative;
         }
         h1 {
             color: #333;
             text-align: center;
+            margin-bottom: 20px;
         }
         label {
             font-size: 16px;
@@ -51,15 +53,21 @@
             cursor: pointer;
             width: 100%;
             margin-top: 20px;
+            transition: background-color 0.3s;
         }
         button:hover {
             background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
         }
         #message {
             margin-top: 20px;
             font-size: 16px;
             color: #333;
             text-align: center;
+            min-height: 24px;
         }
         #downloadLink {
             margin-top: 10px;
@@ -69,24 +77,84 @@
             color: #4CAF50;
             font-size: 18px;
             text-decoration: none;
+            font-weight: bold;
         }
         a:hover {
             text-decoration: underline;
+        }
+        .history-link {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .history-link a {
+            color: #4CAF50;
+            font-size: 16px;
+            text-decoration: none;
+            padding: 8px 16px;
+            border: 1px solid #4CAF50;
+            border-radius: 4px;
+            transition: all 0.3s;
+        }
+        .history-link a:hover {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .loader {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #4CAF50;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .progress-container {
+            width: 100%;
+            background-color: #f1f1f1;
+            border-radius: 5px;
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.3s;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+            font-size: 12px;
         }
     </style>
 </head>
 <body>
 <div class="container">
+    <div class="history-link">
+        <a href="/reports/history">Просмотреть историю отчётов</a>
+    </div>
+
     <h1>Загрузка Markdown файла и архива с изображениями</h1>
 
     <form id="uploadForm" enctype="multipart/form-data">
         <label for="fileInput">Markdown (.md):</label>
-        <input type="file" id="fileInput" name="mdFile" accept=".md">
+        <input type="file" id="fileInput" name="mdFile" accept=".md" required>
 
-        <label for="zipInput">ZIP архив с изображениями:</label>
+        <label for="zipInput">ZIP архив с изображениями (опционально):</label>
         <input type="file" id="zipInput" name="zipFile" accept=".zip">
 
-        <button type="button" onclick="uploadFiles()">Загрузить</button>
+        <button type="button" id="submitBtn" onclick="uploadFiles()">Сгенерировать PDF</button>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar">0%</div>
+        </div>
+
+        <div class="loader" id="loader"></div>
     </form>
 
     <div id="message"></div>
@@ -96,17 +164,37 @@
 <script>
     function uploadFiles() {
         const mdFile = document.getElementById("fileInput").files[0];
-        const zipFile = document.getElementById("zipInput").files[0];
+        const submitBtn = document.getElementById("submitBtn");
         const messageDiv = document.getElementById("message");
         const linkDiv = document.getElementById("downloadLink");
+        const loader = document.getElementById("loader");
+        const progressContainer = document.getElementById("progressContainer");
+        const progressBar = document.getElementById("progressBar");
 
         if (!mdFile) {
             messageDiv.innerText = "Пожалуйста, выберите Markdown файл.";
             return;
         }
 
+        // Показываем индикаторы загрузки
+        submitBtn.disabled = true;
+        loader.style.display = "block";
+        progressContainer.style.display = "block";
+        messageDiv.innerText = "Идет генерация PDF...";
+        linkDiv.innerHTML = "";
+
+        // Эмуляция прогресса (в реальном проекте можно использовать SSE или WebSockets)
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 10;
+            if (progress > 90) progress = 90;
+            progressBar.style.width = progress + "%";
+            progressBar.innerText = Math.round(progress) + "%";
+        }, 300);
+
         const formData = new FormData();
         formData.append("mdFile", mdFile);
+        const zipFile = document.getElementById("zipInput").files[0];
         if (zipFile) {
             formData.append("zipFile", zipFile);
         }
@@ -116,16 +204,29 @@
             body: formData
         })
             .then(async response => {
+                clearInterval(progressInterval);
+                progressBar.style.width = "100%";
+                progressBar.innerText = "100%";
+
                 const text = await response.text();
                 if (response.ok) {
-                    messageDiv.innerText = "Файлы успешно загружены и PDF создан!";
+                    messageDiv.innerText = "PDF успешно сгенерирован!";
                     linkDiv.innerHTML = `<a href="/download/${text}" target="_blank">Скачать PDF</a>`;
                 } else {
                     messageDiv.innerText = "Ошибка: " + text;
                 }
             })
             .catch(err => {
+                clearInterval(progressInterval);
                 messageDiv.innerText = "Ошибка запроса: " + err;
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                loader.style.display = "none";
+                setTimeout(() => {
+                    progressContainer.style.display = "none";
+                    progressBar.style.width = "0%";
+                }, 2000);
             });
     }
 </script>
